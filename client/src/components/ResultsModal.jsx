@@ -4,12 +4,24 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { io } from 'socket.io-client';
 import api from '../services/api';
 
-// Socket instance (singleton per session to avoid multiple connections)
-// Socket instance (singleton per session to avoid multiple connections)
-const socket = io(import.meta.env.VITE_API_BASE_URL, {
-  transports: ["websocket", "polling"],
-  autoConnect: true
-});
+// Socket instance (singleton per session)
+let socket;
+
+const getSocket = () => {
+    if (!socket) {
+        // Ensure strictly NO fallback to localhost
+        const baseUrl = import.meta.env.VITE_API_BASE_URL;
+        if (!baseUrl) {
+            console.error('Socket Error: VITE_API_BASE_URL is not defined');
+            return null;
+        }
+        socket = io(baseUrl, {
+            transports: ["websocket", "polling"],
+            autoConnect: true
+        });
+    }
+    return socket;
+};
 
 const ResultsModal = ({ show, onHide, electionId }) => {
     const [results, setResults] = useState([]);
@@ -37,34 +49,37 @@ const ResultsModal = ({ show, onHide, electionId }) => {
             setLoading(true);
             fetchResults();
 
-            // Join Election Room
-            socket.emit('joinElection', electionId);
+            const socketInstance = getSocket();
+            if (socketInstance) {
+                // Join Election Room
+                socketInstance.emit('joinElection', electionId);
 
-            // Listen for updates
-            socket.on('voteUpdate', (data) => {
-                if (data.electionId === electionId) {
-                    setResults((prevResults) => {
-                        return prevResults.map((candidate) => {
-                            if (candidate._id === data.candidateId) {
-                                return { ...candidate, voteCount: data.newVoteCount };
-                            }
-                            return candidate;
+                // Listen for updates
+                socketInstance.on('voteUpdate', (data) => {
+                    if (data.electionId === electionId) {
+                        setResults((prevResults) => {
+                            return prevResults.map((candidate) => {
+                                if (candidate._id === data.candidateId) {
+                                    return { ...candidate, voteCount: data.newVoteCount };
+                                }
+                                return candidate;
+                            });
                         });
-                    });
-                    // Re-calc total localy or refetch? Efficient to just add 1 or sum again
-                    setResults(current => {
-                        const newTotal = current.reduce((acc, c) => acc + c.voteCount, 0);
-                        setTotalVotes(newTotal);
-                        return current;
-                    });
+                        setResults(current => {
+                            const newTotal = current.reduce((acc, c) => acc + c.voteCount, 0);
+                            setTotalVotes(newTotal);
+                            return current;
+                        });
+                    }
+                });
+            }
+
+            return () => {
+                if (socketInstance) {
+                    socketInstance.emit('leaveElection', electionId);
+                    socketInstance.off('voteUpdate');
                 }
-            });
-
-           return () => {
-  socket.emit('leaveElection', electionId);
-  socket.off('voteUpdate');
-};
-
+            };
         }
     }, [show, electionId]);
 
