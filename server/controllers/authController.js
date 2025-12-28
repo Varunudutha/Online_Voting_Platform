@@ -167,19 +167,19 @@ const sendOtp = async (req, res) => {
         throw new Error('User already exists');
     }
 
-    // MX Record Validation (Real-world Email Check)
+    // MX Record Validation (Soft Check for Production Reliability)
     try {
         const addresses = await resolveMx(domain);
         if (!addresses || addresses.length === 0) {
-            throw new Error('No MX records found');
+            // Only throw if purely testing, or log warn in prod?
+            // For now, let's treat no MX records as a "soft fail" - maybe just warn?
+            // STRICT MODE: throw new Error('No MX records found');
+            console.warn(`[MX CHECK] No MX records for ${domain}, but allowing registration to proceed.`);
         }
     } catch (error) {
-        if (error.code === 'ENOTFOUND' || error.code === 'ENODATA' || error.message === 'No MX records found') {
-            res.status(400);
-            throw new Error('Invalid email domain (Cannot receive emails)');
-        }
-        // Allow proceed on other DNS errors (timeout, servfail) to avoid blocking valid users
-        console.warn(`[WARN] Skipping MX check for ${domain} due to DNS error: ${error.message}`);
+        // In production, DNS lookups can fail due to network restrictions. 
+        // We DO NOT want to block valid users because of a timeout or DNS glitch.
+        console.warn(`[MX CHECK WARN] DNS lookup failed for ${domain}: ${error.code}. Proceeding anyway.`);
     }
 
     // Generate 6-digit OTP
