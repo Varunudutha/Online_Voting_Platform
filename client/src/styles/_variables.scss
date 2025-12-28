@@ -1,0 +1,31 @@
+// Custom Theme Variables
+// We define our constants here to be passed into Bootstrap's configuration.
+
+$primary: #1e3a8a;
+$secondary: #64748b;
+$success: #10b981;
+$info: #0ea5e9;
+$warning: #f59e0b;
+$danger: #ef4444;
+
+$body-bg: #f8fafc;
+$body-color: #334155;
+$headings-color: #0f172a;
+
+$font-family-base: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+$enable-shadows: false;
+$enable-gradients: false;
+
+// Buttons
+$btn-border-radius: 8px;
+$btn-border-radius-lg: 12px;
+$btn-border-radius-sm: 6px;
+$btn-padding-y: 0.75rem;
+$btn-padding-x: 1.5rem;
+
+// Cards
+$card-border-radius: 16px;
+$card-border-width: 0;
+$card-bg: #ffffff;
+$card-box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
