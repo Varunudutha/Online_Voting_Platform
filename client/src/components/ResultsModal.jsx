@@ -6,7 +6,10 @@ import api from '../services/api';
 
 // Socket instance (singleton per session to avoid multiple connections)
 // Socket instance (singleton per session to avoid multiple connections)
-const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
+const socket = io(import.meta.env.VITE_API_BASE_URL, {
+  transports: ["websocket", "polling"],
+  autoConnect: true
+});
 
 const ResultsModal = ({ show, onHide, electionId }) => {
     const [results, setResults] = useState([]);
@@ -57,9 +60,11 @@ const ResultsModal = ({ show, onHide, electionId }) => {
                 }
             });
 
-            return () => {
-                socket.off('voteUpdate');
-            };
+           return () => {
+  socket.emit('leaveElection', electionId);
+  socket.off('voteUpdate');
+};
+
         }
     }, [show, electionId]);
 
