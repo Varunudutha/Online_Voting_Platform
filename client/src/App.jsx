@@ -12,6 +12,7 @@ import Landing from './pages/Landing';
 import About from './pages/About'; // Add Import
 
 import { ToastContainer } from 'react-toastify';
+console.log("API BASE URL:", import.meta.env.VITE_API_BASE_URL);
 
 const App = () => {
   return (
