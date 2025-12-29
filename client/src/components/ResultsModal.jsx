@@ -1,27 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { io } from 'socket.io-client';
+import socket from '../services/socket';
 import api from '../services/api';
 
-// Socket instance (singleton per session)
-let socket;
+// Socket instance is now imported from services/socket.js
 
-const getSocket = () => {
-    if (!socket) {
-        // Ensure strictly NO fallback to localhost
-        const baseUrl = import.meta.env.VITE_API_BASE_URL;
-        if (!baseUrl) {
-            console.error('Socket Error: VITE_API_BASE_URL is not defined');
-            return null;
-        }
-        socket = io(baseUrl, {
-            transports: ["websocket", "polling"],
-            autoConnect: true
-        });
-    }
-    return socket;
-};
 
 const ResultsModal = ({ show, onHide, electionId }) => {
     const [results, setResults] = useState([]);
@@ -49,13 +33,13 @@ const ResultsModal = ({ show, onHide, electionId }) => {
             setLoading(true);
             fetchResults();
 
-            const socketInstance = getSocket();
-            if (socketInstance) {
+            if (socket) {
+                if (!socket.connected) socket.connect();
                 // Join Election Room
-                socketInstance.emit('joinElection', electionId);
+                socket.emit('joinElection', electionId);
 
                 // Listen for updates
-                socketInstance.on('voteUpdate', (data) => {
+                socket.on('voteUpdate', (data) => {
                     if (data.electionId === electionId) {
                         setResults((prevResults) => {
                             return prevResults.map((candidate) => {
@@ -75,9 +59,9 @@ const ResultsModal = ({ show, onHide, electionId }) => {
             }
 
             return () => {
-                if (socketInstance) {
-                    socketInstance.emit('leaveElection', electionId);
-                    socketInstance.off('voteUpdate');
+                if (socket) {
+                    socket.emit('leaveElection', electionId);
+                    socket.off('voteUpdate');
                 }
             };
         }

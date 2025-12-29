@@ -12,18 +12,20 @@ const app = express();
 const server = http.createServer(app);
 
 // Init Socket.IO
+// CORS Config
+const corsOptions = {
+    origin: [
+        process.env.FRONTEND_URL,
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ].filter(Boolean),
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+};
+
 // Init Socket.IO
 const io = new Server(server, {
-    cors: {
-        // Allow production frontend + localhost for dev
-        origin: [
-            process.env.FRONTEND_URL,
-            "http://localhost:5173",
-            "http://127.0.0.1:5173"
-        ].filter(Boolean), // Filter out undefined if FRONTEND_URL is missing
-        methods: ["GET", "POST"],
-        credentials: true
-    }
+    cors: corsOptions
 });
 
 // Make io accessible globally via app.set
@@ -44,7 +46,7 @@ io.on('connection', (socket) => {
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(morgan('dev'));
 
