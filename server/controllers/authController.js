@@ -190,11 +190,19 @@ const sendOtp = async (req, res) => {
     await Otp.create({ email, otp });
 
     // Send Email
+    // Send Email
     try {
         if (!process.env.BREVO_API_KEY) {
             console.log('DEV MODE (No Brevo Key): OTP for', email, 'is', otp);
+            // In Production, this must be an error
+            if (process.env.NODE_ENV === 'production') {
+                throw new Error("Missing BREVO_API_KEY in Production Environment");
+            }
         } else {
+            // CRITICAL: Sender Email MUST be verified in Brevo
             const senderEmail = process.env.EMAIL_FROM ? process.env.EMAIL_FROM.trim() : 'noreply@votesecure.com';
+
+            console.log(`[Brevo] Sending OTP to ${email} from ${senderEmail}`);
 
             const sendSmtpEmail = new Brevo.SendSmtpEmail();
             sendSmtpEmail.to = [{ email }];
@@ -212,12 +220,18 @@ const sendOtp = async (req, res) => {
             `;
 
             await apiInstance.sendTransacEmail(sendSmtpEmail);
+            console.log(`[Brevo] Email sent successfully to ${email}`);
         }
         res.status(200).json({ message: 'OTP sent successfully to ' + email });
     } catch (error) {
-        console.error('Email send error:', error.response?.body || error.message);
-        res.status(500);
-        throw new Error('Failed to send OTP email');
+        console.error('Email send error:', error.response ? JSON.stringify(error.response.body) : error.message);
+
+        // Return detailed error to client only if specific known issue, otherwise generic
+        if (error.message.includes("sender")) {
+            res.status(500).json({ message: "Server Misconfiguration: Email Sender not verified." });
+        } else {
+            res.status(500).json({ message: "Failed to send OTP email. Please try again later." });
+        }
     }
 
 };

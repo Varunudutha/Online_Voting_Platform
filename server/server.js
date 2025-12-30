@@ -13,14 +13,17 @@ const server = http.createServer(app);
 
 // Init Socket.IO
 // CORS Config
+const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : "";
+
 const corsOptions = {
     origin: [
-        process.env.FRONTEND_URL,
+        frontendUrl,
         "http://localhost:5173",
         "http://127.0.0.1:5173"
     ].filter(Boolean),
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
 };
 
 // Init Socket.IO
@@ -46,6 +49,16 @@ io.on('connection', (socket) => {
 
 // Middleware
 app.use(express.json());
+
+// Debug Middleware for Production
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && !corsOptions.origin.includes(origin)) {
+        console.log(`[CORS BLOCKED] Origin: ${origin} is not in allowed list: ${corsOptions.origin}`);
+    }
+    next();
+});
+
 app.use(cors(corsOptions));
 app.use(helmet());
 app.use(morgan('dev'));
