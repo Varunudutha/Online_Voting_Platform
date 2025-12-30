@@ -12,6 +12,26 @@ if (!API_BASE) {
 // Remove trailing slash if present to avoid double slashes
 const cleanBaseUrl = API_BASE.replace(/\/$/, '');
 
+// SAFETY CHECK: Panic if using localhost in production
+if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && cleanBaseUrl.includes('localhost')) {
+    const criticalMsg = `
+    🚨 CRITICAL CONFIGURATION ERROR 🚨
+    -----------------------------------------------------
+    Your App is running on a live domain (${window.location.hostname})
+    BUT it is trying to connect to 'localhost' (${cleanBaseUrl}).
+    
+    This is why Login/OTP fails.
+    
+    FIX:
+    1. Go to Vercel Dashboard > Settings > Environment Variables
+    2. Change VITE_API_BASE_URL to your Render Backend URL (https://....onrender.com)
+    3. REDEPLOY the project.
+    -----------------------------------------------------
+    `;
+    console.error(criticalMsg);
+    alert("SYSTEM ERROR: Backend not configured correctly. See console for details.");
+}
+
 console.log(`%c API Configured: ${cleanBaseUrl}`, 'color: #00ff00; font-weight: bold;');
 
 const api = axios.create({
