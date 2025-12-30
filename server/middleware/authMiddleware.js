@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Election = require('../models/Election');
+const Vote = require('../models/Vote');
 
 const protect = async (req, res, next) => {
     let token;
@@ -61,11 +62,10 @@ const checkElectionOwnership = async (req, res, next) => {
             throw new Error('Access Denied: You do not own this election');
         }
     } else if (req.user.role === 'voter') {
-        // 4. Voter Eligibility Check (Bonus safety, reuse existing logic if needed)
-        // For now, strict requirement focused on Admin cross-access. 
-        // We can enforce voter eligibility here too for "View" operations.
         const isEligible = election.eligibleVoters.some(v => v.toString() === req.user.id);
-        if (!isEligible) {
+        const hasVoted = await Vote.exists({ electionId: election._id, userId: req.user.id });
+
+        if (!isEligible && !hasVoted) {
             res.status(403);
             throw new Error('Access Denied: You are not eligible for this election');
         }

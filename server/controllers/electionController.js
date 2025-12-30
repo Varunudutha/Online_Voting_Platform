@@ -1,9 +1,7 @@
 const Election = require('../models/Election');
-const Candidate = require('../models/Candidate'); // Ensure this model exists
+const Candidate = require('../models/Candidate');
+const Vote = require('../models/Vote');
 
-// @desc    Get all elections (for Admin/Voter)
-// @route   GET /api/elections
-// @access  Public (or Protected depending on requirements)
 // @desc    Get all elections (for Admin/Voter)
 // @route   GET /api/elections
 // @access  Public (or Protected depending on requirements)
@@ -14,11 +12,28 @@ const getElections = async (req, res) => {
         // Admin: Only see elections created by them
         query = { createdBy: req.user.id };
     } else if (req.user.role === 'voter') {
-        // Voter: Only see elections where they are explicitly allowed
-        query = { eligibleVoters: req.user.id };
+        // Voter: See elections where they are eligible OR have already voted
+        // 1. Get all elections the user has voted in
+        const userVotes = await Vote.find({ userId: req.user.id }).select('electionId');
+        const votedElectionIds = userVotes.map(vote => vote.electionId);
+
+        // 2. Construct Query
+        query = {
+            $or: [
+                { eligibleVoters: req.user.id },
+                { _id: { $in: votedElectionIds } }
+            ]
+        };
+    } else {
+        // Unknown role: Return nothing or error
+        // Returning empty array is safer than exposing data
+        return res.status(200).json([]);
     }
 
-    const elections = await Election.find(query).populate('candidates');
+    const elections = await Election.find(query)
+        .populate('candidates')
+        .sort({ createdAt: -1 }); // Sort by newest first
+
     res.status(200).json(elections);
 };
 
@@ -35,7 +50,6 @@ const getElection = async (req, res) => {
         throw new Error('Election not found');
     }
 
-    // Security check for single election view if voter
     // Security check
     if (req.user.role === 'admin') {
         // Admin must own the election
@@ -44,9 +58,13 @@ const getElection = async (req, res) => {
             throw new Error('Not authorized to view this election');
         }
     } else {
-        // Voter must be eligible
+        // Voter must be eligible OR have voted
         const isEligible = election.eligibleVoters.some(v => v._id.toString() === req.user.id);
-        if (!isEligible) {
+
+        // Check if voted
+        const hasVoted = await Vote.exists({ electionId: election._id, userId: req.user.id });
+
+        if (!isEligible && !hasVoted) {
             res.status(403);
             throw new Error('Not authorized to view this election');
         }
